@@ -1,0 +1,73 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G G Chopra School Attendance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-4 md:p-8">
+    <div class="max-w-6xl mx-auto bg-white p-4 md:p-6 rounded-lg shadow-md">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <h1 class="text-xl md:text-2xl font-bold text-gray-800">G G Chopra School Attendance</h1>
+            
+            <form action="/" method="GET" class="w-full md:w-auto">
+                <select name="month" class="border p-2 rounded w-full md:w-auto bg-white" onchange="this.form.submit()">
+                    <option value="August" {% if selected_month == 'August' %}selected{% endif %}>August</option>
+                    <option value="September" {% if selected_month == 'September' %}selected{% endif %}>September</option>
+                    <option value="October" {% if selected_month == 'October' %}selected{% endif %}>October</option>
+                </select>
+            </form>
+        </div>
+
+        <div class="overflow-x-auto shadow-inner rounded-lg">
+            <table class="w-full border-collapse border border-gray-300 text-sm">
+                <thead>
+                    <tr class="bg-blue-100">
+                        <th class="border p-2 text-left sticky left-0 bg-blue-200 z-10 min-w-[150px]">Student Name</th>
+                        {% for day in range(1, days_in_month + 1) %}
+                            <th class="border p-2 min-w-[40px]">{{ day }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="border p-2 font-medium sticky left-0 bg-gray-100 z-10">{{ student.name }}</td>
+                        {% for day in range(1, days_in_month + 1) %}
+                            <td class="border p-0 text-center">
+                                <select class="w-full h-full p-2 bg-transparent cursor-pointer appearance-none text-center font-bold" 
+                                        onchange="updateAttendance({{ student.id }}, '{{ selected_month }}', {{ day }}, this.value)">
+                                    <option value=""></option>
+                                    <option value="P" class="text-green-600" {% if attendance[student.id].get(day) == 'P' %}selected{% endif %}>P</option>
+                                    <option value="A" class="text-red-600" {% if attendance[student.id].get(day) == 'A' %}selected{% endif %}>A</option>
+                                    <option value="H" class="text-yellow-600" {% if attendance[student.id].get(day) == 'H' %}selected{% endif %}>H</option>
+                                </select>
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function updateAttendance(studentId, month, day, status) {
+            const formData = new FormData();
+            formData.append('student_id', studentId);
+            formData.append('month', month);
+            formData.append('day', day);
+            formData.append('status', status);
+
+            fetch('/mark', {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if(!response.ok) alert("Network error: Failed to save attendance.");
+            });
+        }
+    </script>
+</body>
+</html>
