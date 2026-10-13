@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>G G Chopra School Attendance</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* This hides buttons and dropdowns when exporting to PDF */
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; padding: 0; margin: 0; }
+            .shadow, .border { border: none !important; box-shadow: none !important; }
+            select { appearance: none; -webkit-appearance: none; border: none; background: transparent; }
+        }
+    </style>
 </head>
 <body class="bg-gray-100 p-2 md:p-6">
     <div class="max-w-full mx-auto bg-white p-4 rounded-xl shadow border border-gray-200">
@@ -16,32 +25,45 @@
                 <p class="text-xs text-gray-500">Total Students: {{ students|length }}</p>
             </div>
             
-            <!-- Month & Year Selectors -->
-            <form action="/" method="GET" class="flex gap-2">
-                <select name="month" class="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white font-medium" onchange="this.form.submit()">
-                    {% for m in months_list %}
-                        <option value="{{ m }}" {% if selected_month == m %}selected{% endif %}>{{ m }}</option>
-                    {% endfor %}
-                </select>
+            <div class="flex gap-4 items-center no-print">
+                <!-- Export Buttons -->
+                <div class="flex gap-2 border-r pr-4 border-gray-300">
+                    <button onclick="exportExcel()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-sm font-bold shadow">Excel</button>
+                    <button onclick="window.print()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm font-bold shadow">PDF</button>
+                </div>
 
-                <select name="year" class="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white font-medium" onchange="this.form.submit()">
-                    {% for y in years_list %}
-                        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
-                    {% endfor %}
-                </select>
-            </form>
+                <!-- Month & Year Selectors -->
+                <form action="/" method="GET" class="flex gap-2">
+                    <select name="month" class="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white font-medium" onchange="this.form.submit()">
+                        {% for m in months_list %}
+                            <option value="{{ m }}" {% if selected_month == m %}selected{% endif %}>{{ m }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <select name="year" class="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white font-medium" onchange="this.form.submit()">
+                        {% for y in years_list %}
+                            <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
         </div>
 
         <!-- Attendance Grid -->
         <div class="overflow-x-auto border border-gray-200 rounded-lg">
-            <table class="w-full text-xs border-collapse">
+            <table class="w-full text-xs border-collapse" id="attendance-table">
                 <thead>
                     <tr class="bg-blue-600 text-white">
                         <th class="p-2 border border-blue-500 text-left sticky left-0 bg-blue-600 z-20 min-w-[160px]">Student Name</th>
                         {% for day_info in day_headers %}
                             <th class="p-1 border border-blue-500 text-center min-w-[40px]">
                                 {{ day_info.date }}<br>
-                                <span class="text-[9px] font-normal">{{ day_info.name }}</span>
+                                <span class="text-[9px] font-normal">{{ day_info.name }}</span><br>
+                                <!-- Clear Day Button -->
+                                <button onclick="clearDay('{{ selected_month }}_{{ selected_year }}', {{ day_info.date }})" 
+                                        class="no-print text-[8px] bg-red-500 hover:bg-red-700 text-white px-1 py-0.5 rounded mt-1 shadow">
+                                    Clear
+                                </button>
                             </th>
                         {% endfor %}
                         <th class="p-2 border border-blue-500 text-center bg-green-700 min-w-[60px] sticky right-0 z-20">Total P</th>
@@ -55,6 +77,12 @@
                         </td>
                         {% for day_info in day_headers %}
                             {% set current_val = attendance[student.id].get(day_info.date, '') %}
+                            
+                            <!-- Force Default OFF for Sundays if empty -->
+                            {% if current_val == '' and day_info.name == 'Sun' %}
+                                {% set current_val = 'OFF' %}
+                            {% endif %}
+
                             <td class="border border-gray-200 p-0 text-center">
                                 <select 
                                     class="w-full h-10 text-center font-bold bg-transparent cursor-pointer 
@@ -71,7 +99,6 @@
                             </td>
                         {% endfor %}
                         
-                        <!-- Total Present Column -->
                         <td id="present-count-{{ student.id }}" class="p-2 border border-gray-200 text-center font-bold text-green-700 bg-green-50 sticky right-0 z-10">
                             {{ present_counts[student.id] }}
                         </td>
@@ -96,13 +123,11 @@
                 body: formData
             }).then(response => {
                 if(response.ok) {
-                    // Update dropdown color immediately
                     selectElement.className = "w-full h-10 text-center font-bold bg-transparent cursor-pointer " + 
                         (status === 'P' ? 'text-green-600 bg-green-50' : 
                          status === 'A' ? 'text-red-600 bg-red-50' : 
                          (status === 'H' || status === 'OFF') ? 'text-yellow-600 bg-yellow-50' : '');
 
-                    // Recalculate row Present count
                     const row = selectElement.closest('tr');
                     const selects = row.querySelectorAll('select');
                     let pCount = 0;
@@ -112,6 +137,50 @@
                     alert("Error saving record.");
                 }
             });
+        }
+
+        function clearDay(monthKey, day) {
+            if(confirm(`Are you sure you want to clear all attendance data for Day ${day}?`)) {
+                const formData = new FormData();
+                formData.append('month', monthKey);
+                formData.append('day', day);
+
+                fetch('/clear_day', {
+                    method: 'POST',
+                    body: formData
+                }).then(response => {
+                    if(response.ok) location.reload(); // Refresh to show empty columns
+                });
+            }
+        }
+
+        function exportExcel() {
+            let csv = [];
+            let rows = document.querySelectorAll("table tr");
+            
+            for (let i = 0; i < rows.length; i++) {
+                let row = [], cols = rows[i].querySelectorAll("td, th");
+                for (let j = 0; j < cols.length; j++) {
+                    // Get value from select dropdowns, otherwise get standard text
+                    let select = cols[j].querySelector('select');
+                    if (select) {
+                        row.push(`"${select.value}"`);
+                    } else {
+                        // Clean up text format for the CSV
+                        let text = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, " ").replace(/Clear/g, "").trim();
+                        row.push(`"${text}"`);
+                    }
+                }
+                csv.push(row.join(","));
+            }
+            
+            let csvFile = new Blob([csv.join("\n")], {type: "text/csv"});
+            let downloadLink = document.createElement("a");
+            downloadLink.download = "Attendance_{{ selected_month }}_{{ selected_year }}.csv";
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = "none";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
         }
     </script>
 </body>
