@@ -1,4 +1,3 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,45 +6,75 @@
     <title>G G Chopra School Attendance</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50 p-4 md:p-8">
-    <div class="max-w-6xl mx-auto bg-white p-4 md:p-6 rounded-lg shadow-md">
-        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-            <h1 class="text-xl md:text-2xl font-bold text-gray-800">G G Chopra School Attendance</h1>
+<body class="bg-gray-100 p-2 md:p-6">
+    <div class="max-w-full mx-auto bg-white p-4 rounded-xl shadow border border-gray-200">
+        
+        <!-- Header & Selectors -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-3">
+            <div>
+                <h1 class="text-xl font-bold text-gray-800">9th Class Attendance</h1>
+                <p class="text-xs text-gray-500">Total Students: {{ students|length }}</p>
+            </div>
             
-            <form action="/" method="GET" class="w-full md:w-auto">
-                <select name="month" class="border p-2 rounded w-full md:w-auto bg-white" onchange="this.form.submit()">
-                    <option value="August" {% if selected_month == 'August' %}selected{% endif %}>August</option>
-                    <option value="September" {% if selected_month == 'September' %}selected{% endif %}>September</option>
-                    <option value="October" {% if selected_month == 'October' %}selected{% endif %}>October</option>
+            <!-- Month & Year Selectors -->
+            <form action="/" method="GET" class="flex gap-2">
+                <select name="month" class="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white font-medium" onchange="this.form.submit()">
+                    {% for m in months_list %}
+                        <option value="{{ m }}" {% if selected_month == m %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+
+                <select name="year" class="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white font-medium" onchange="this.form.submit()">
+                    {% for y in years_list %}
+                        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
                 </select>
             </form>
         </div>
 
-        <div class="overflow-x-auto shadow-inner rounded-lg">
-            <table class="w-full border-collapse border border-gray-300 text-sm">
+        <!-- Attendance Grid -->
+        <div class="overflow-x-auto border border-gray-200 rounded-lg">
+            <table class="w-full text-xs border-collapse">
                 <thead>
-                    <tr class="bg-blue-100">
-                        <th class="border p-2 text-left sticky left-0 bg-blue-200 z-10 min-w-[150px]">Student Name</th>
-                        {% for day in range(1, days_in_month + 1) %}
-                            <th class="border p-2 min-w-[40px]">{{ day }}</th>
+                    <tr class="bg-blue-600 text-white">
+                        <th class="p-2 border border-blue-500 text-left sticky left-0 bg-blue-600 z-20 min-w-[160px]">Student Name</th>
+                        {% for day_info in day_headers %}
+                            <th class="p-1 border border-blue-500 text-center min-w-[40px]">
+                                {{ day_info.date }}<br>
+                                <span class="text-[9px] font-normal">{{ day_info.name }}</span>
+                            </th>
                         {% endfor %}
+                        <th class="p-2 border border-blue-500 text-center bg-green-700 min-w-[60px] sticky right-0 z-20">Total P</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="divide-y divide-gray-200">
                     {% for student in students %}
-                    <tr class="hover:bg-gray-50">
-                        <td class="border p-2 font-medium sticky left-0 bg-gray-100 z-10">{{ student.name }}</td>
-                        {% for day in range(1, days_in_month + 1) %}
-                            <td class="border p-0 text-center">
-                                <select class="w-full h-full p-2 bg-transparent cursor-pointer appearance-none text-center font-bold" 
-                                        onchange="updateAttendance({{ student.id }}, '{{ selected_month }}', {{ day }}, this.value)">
+                    <tr class="hover:bg-blue-50">
+                        <td class="p-2 border border-gray-200 font-medium sticky left-0 bg-white z-10 whitespace-nowrap">
+                            {{ loop.index }}. {{ student.name }}
+                        </td>
+                        {% for day_info in day_headers %}
+                            {% set current_val = attendance[student.id].get(day_info.date, '') %}
+                            <td class="border border-gray-200 p-0 text-center">
+                                <select 
+                                    class="w-full h-10 text-center font-bold bg-transparent cursor-pointer 
+                                           {% if current_val == 'P' %}text-green-600 bg-green-50
+                                           {% elif current_val == 'A' %}text-red-600 bg-red-50
+                                           {% elif current_val == 'H' or current_val == 'OFF' %}text-yellow-600 bg-yellow-50{% endif %}"
+                                    onchange="updateAttendance({{ student.id }}, '{{ selected_month }}_{{ selected_year }}', {{ day_info.date }}, this)">
                                     <option value=""></option>
-                                    <option value="P" class="text-green-600" {% if attendance[student.id].get(day) == 'P' %}selected{% endif %}>P</option>
-                                    <option value="A" class="text-red-600" {% if attendance[student.id].get(day) == 'A' %}selected{% endif %}>A</option>
-                                    <option value="H" class="text-yellow-600" {% if attendance[student.id].get(day) == 'H' %}selected{% endif %}>H</option>
+                                    <option value="P" {% if current_val == 'P' %}selected{% endif %}>P</option>
+                                    <option value="A" {% if current_val == 'A' %}selected{% endif %}>A</option>
+                                    <option value="H" {% if current_val == 'H' %}selected{% endif %}>H</option>
+                                    <option value="OFF" {% if current_val == 'OFF' %}selected{% endif %}>OFF</option>
                                 </select>
                             </td>
                         {% endfor %}
+                        
+                        <!-- Total Present Column -->
+                        <td id="present-count-{{ student.id }}" class="p-2 border border-gray-200 text-center font-bold text-green-700 bg-green-50 sticky right-0 z-10">
+                            {{ present_counts[student.id] }}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -54,10 +83,11 @@
     </div>
 
     <script>
-        function updateAttendance(studentId, month, day, status) {
+        function updateAttendance(studentId, monthKey, day, selectElement) {
+            const status = selectElement.value;
             const formData = new FormData();
             formData.append('student_id', studentId);
-            formData.append('month', month);
+            formData.append('month', monthKey);
             formData.append('day', day);
             formData.append('status', status);
 
@@ -65,7 +95,22 @@
                 method: 'POST',
                 body: formData
             }).then(response => {
-                if(!response.ok) alert("Network error: Failed to save attendance.");
+                if(response.ok) {
+                    // Update dropdown color immediately
+                    selectElement.className = "w-full h-10 text-center font-bold bg-transparent cursor-pointer " + 
+                        (status === 'P' ? 'text-green-600 bg-green-50' : 
+                         status === 'A' ? 'text-red-600 bg-red-50' : 
+                         (status === 'H' || status === 'OFF') ? 'text-yellow-600 bg-yellow-50' : '');
+
+                    // Recalculate row Present count
+                    const row = selectElement.closest('tr');
+                    const selects = row.querySelectorAll('select');
+                    let pCount = 0;
+                    selects.forEach(s => { if (s.value === 'P') pCount++; });
+                    document.getElementById(`present-count-${studentId}`).innerText = pCount;
+                } else {
+                    alert("Error saving record.");
+                }
             });
         }
     </script>
