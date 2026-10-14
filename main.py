@@ -84,9 +84,8 @@ async def read_attendance(request: Request, month: str = "October", year: int = 
                 present_counts[s_id] += 1
             
     return templates.TemplateResponse(
-        request=request,
-        name="index.html",
-        context={
+        "index.html",
+        {
             "request": request,
             "students": students,
             "selected_month": month,
