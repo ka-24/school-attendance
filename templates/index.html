@@ -6,7 +6,6 @@
     <title>G G Chopra School Attendance</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* This hides buttons and dropdowns when exporting to PDF */
         @media print {
             .no-print { display: none !important; }
             body { background: white; padding: 0; margin: 0; }
@@ -21,19 +20,23 @@
         <!-- Header & Selectors -->
         <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-3">
             <div>
-                <h1 class="text-xl font-bold text-gray-800">9th Class Attendance</h1>
+                <h1 class="text-xl font-bold text-gray-800">9th Class - Section {{ selected_section }}</h1>
                 <p class="text-xs text-gray-500">Total Students: {{ students|length }}</p>
             </div>
             
             <div class="flex gap-4 items-center no-print">
-                <!-- Export Buttons -->
                 <div class="flex gap-2 border-r pr-4 border-gray-300">
                     <button onclick="exportExcel()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-sm font-bold shadow">Excel</button>
                     <button onclick="window.print()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm font-bold shadow">PDF</button>
                 </div>
 
-                <!-- Month & Year Selectors -->
                 <form action="/" method="GET" class="flex gap-2">
+                    <!-- Section Dropdown -->
+                    <select name="section" class="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white font-medium" onchange="this.form.submit()">
+                        <option value="A" {% if selected_section == 'A' %}selected{% endif %}>Section A</option>
+                        <option value="B" {% if selected_section == 'B' %}selected{% endif %}>Section B</option>
+                    </select>
+
                     <select name="month" class="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white font-medium" onchange="this.form.submit()">
                         {% for m in months_list %}
                             <option value="{{ m }}" {% if selected_month == m %}selected{% endif %}>{{ m }}</option>
@@ -49,7 +52,6 @@
             </div>
         </div>
 
-        <!-- Attendance Grid -->
         <div class="overflow-x-auto border border-gray-200 rounded-lg">
             <table class="w-full text-xs border-collapse" id="attendance-table">
                 <thead>
@@ -59,7 +61,6 @@
                             <th class="p-1 border border-blue-500 text-center min-w-[40px]">
                                 {{ day_info.date }}<br>
                                 <span class="text-[9px] font-normal">{{ day_info.name }}</span><br>
-                                <!-- Clear Day Button -->
                                 <button onclick="clearDay('{{ selected_month }}_{{ selected_year }}', {{ day_info.date }})" 
                                         class="no-print text-[8px] bg-red-500 hover:bg-red-700 text-white px-1 py-0.5 rounded mt-1 shadow">
                                     Clear
@@ -78,7 +79,6 @@
                         {% for day_info in day_headers %}
                             {% set current_val = attendance[student.id].get(day_info.date, '') %}
                             
-                            <!-- Force Default OFF for Sundays if empty -->
                             {% if current_val == '' and day_info.name == 'Sun' %}
                                 {% set current_val = 'OFF' %}
                             {% endif %}
@@ -149,7 +149,7 @@
                     method: 'POST',
                     body: formData
                 }).then(response => {
-                    if(response.ok) location.reload(); // Refresh to show empty columns
+                    if(response.ok) location.reload();
                 });
             }
         }
@@ -161,12 +161,10 @@
             for (let i = 0; i < rows.length; i++) {
                 let row = [], cols = rows[i].querySelectorAll("td, th");
                 for (let j = 0; j < cols.length; j++) {
-                    // Get value from select dropdowns, otherwise get standard text
                     let select = cols[j].querySelector('select');
                     if (select) {
                         row.push(`"${select.value}"`);
                     } else {
-                        // Clean up text format for the CSV
                         let text = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, " ").replace(/Clear/g, "").trim();
                         row.push(`"${text}"`);
                     }
@@ -176,7 +174,7 @@
             
             let csvFile = new Blob([csv.join("\n")], {type: "text/csv"});
             let downloadLink = document.createElement("a");
-            downloadLink.download = "Attendance_{{ selected_month }}_{{ selected_year }}.csv";
+            downloadLink.download = "Attendance_Section_{{ selected_section }}_{{ selected_month }}_{{ selected_year }}.csv";
             downloadLink.href = window.URL.createObjectURL(csvFile);
             downloadLink.style.display = "none";
             document.body.appendChild(downloadLink);

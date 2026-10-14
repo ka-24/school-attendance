@@ -41,11 +41,11 @@ MONTH_NAMES = [
 ]
 
 @app.get("/", response_class=HTMLResponse)
-async def read_attendance(request: Request, month: str = "September", year: int = 2026):
+async def read_attendance(request: Request, month: str = "October", year: int = 2026, section: str = "A"):
     if not engine:
         return HTMLResponse("<h1>Database not connected. Check environment variables!</h1>")
         
-    month_num = MONTH_NAMES.index(month) + 1 if month in MONTH_NAMES else 9
+    month_num = MONTH_NAMES.index(month) + 1 if month in MONTH_NAMES else 10
     _, days_in_month = calendar.monthrange(year, month_num)
     
     day_headers = []
@@ -57,8 +57,16 @@ async def read_attendance(request: Request, month: str = "September", year: int 
         students_query = conn.execute(
             text("SELECT id, encrypted_name FROM students ORDER BY id")
         ).fetchall()
-        students = [{"id": row[0], "name": decrypt_data(row[1])} for row in students_query]
+        all_students = [{"id": row[0], "name": decrypt_data(row[1])} for row in students_query]
         
+        # Split into A and B sections (51 students each)
+        if section == "A":
+            students = all_students[:51]
+        elif section == "B":
+            students = all_students[51:102]
+        else:
+            students = all_students
+            
         attendance_query = conn.execute(
             text("SELECT student_id, day, status FROM attendance WHERE month = :month"),
             {"month": f"{month}_{year}"}
@@ -69,9 +77,11 @@ async def read_attendance(request: Request, month: str = "September", year: int 
     
     for record in attendance_query:
         s_id, day, status = record[0], record[1], record[2]
-        attendance_dict[s_id][day] = status
-        if status == "P":
-            present_counts[s_id] += 1
+        # Only process attendance for students currently visible in the selected section
+        if s_id in attendance_dict:
+            attendance_dict[s_id][day] = status
+            if status == "P":
+                present_counts[s_id] += 1
             
     return templates.TemplateResponse(
         request=request,
@@ -81,6 +91,7 @@ async def read_attendance(request: Request, month: str = "September", year: int 
             "students": students,
             "selected_month": month,
             "selected_year": year,
+            "selected_section": section,
             "months_list": MONTH_NAMES,
             "years_list": [2025, 2026, 2027],
             "attendance": attendance_dict,
@@ -109,7 +120,6 @@ async def mark_attendance(
 @app.post("/clear_day")
 async def clear_day(month: str = Form(...), day: int = Form(...)):
     with engine.connect() as conn:
-        # Deletes all attendance records for the specific day in the selected month
         conn.execute(text("DELETE FROM attendance WHERE month = :month AND day = :day"), 
                      {"month": month, "day": day})
         conn.commit()
